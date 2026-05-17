@@ -51,4 +51,4 @@ After that you can run it by typing see-shell in any terminal. To set it as your
 
 # License
 
-MIT License. See [LICENSE]{LICENSE} for details.
+MIT License. See [LICENSE](LICENSE) for details.
