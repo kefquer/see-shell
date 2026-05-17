@@ -1,0 +1,12 @@
+# compiled bin
+see-shell
+
+# obj files
+*.o
+
+# reserv copy files
+*~
+
+# IDE files
+
+# system files
