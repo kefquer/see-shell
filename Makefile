@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -O2
-LDFLAGS = - lreadline
+LDFLAGS = -lreadline
 TARGET = see-shell
 SRC = src/shell.cpp src/main.cpp
 OBJ = $(SRC:.cpp=.o)

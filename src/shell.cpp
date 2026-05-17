@@ -9,7 +9,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-std::string getInput() {
+std::string Shell::getInput() {
     char* line = readline("> ");
     if (line == nullptr) {
         std::cout << std::endl;
