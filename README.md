@@ -1,6 +1,7 @@
 # See Shell
 
 **See** – Seraphim Execution Environment. A simple command-line shell written in C++.
+
 ⚠️ Note: This project is in early development and may be unstable. It is not recommended to set it as your default shell until it becomes more mature.
 
 ## What it does
