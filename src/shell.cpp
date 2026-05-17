@@ -70,7 +70,7 @@ void Shell::quit() { running_ = false; }
 
 void Shell::brend() const {
     std::cout << "---XwX---" << std::endl;
-    std::cout << "Seraphim Shell" << std::endl;
+    std::cout << "See-Shell" << std::endl;
 }
 
 std::string Shell::parseCommand(const std::string& input) const {
