@@ -1,16 +1,37 @@
 #include "shell.hpp"
 
-#include <cstddef>
-#include <cstdlib>
+#include <csignal>
 #include <iostream>
-#include <string>
-#include <format>
 #include <chrono>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+Shell::Shell() {
+    std::signal(SIGINT, SIG_IGN);
+    cmds = {
+        { "cd", [this](auto argv){ this->cd(argv); } },
+        { "pwd", [this](auto ){ this->pwd(); } },
+        { "exit", [this](auto ){ this->quit(); } },
+        { "datetime", [this](auto ){ this->datetime(); } },
+        { "date", [this](auto ){ this->date(); } },
+        { "time", [this](auto ){ this->time(); } },
+        { "clear", [this](auto ){ this->clear(); } },
+        { "echo", [this](auto argv){ this->echo(argv); } },
+    };
+}
 
 std::string Shell::getInput() {
-    char* line = readline("> ");
+    char username[_SC_LOGIN_NAME_MAX];
+    char hostname[_SC_HOST_NAME_MAX];
+    if (getlogin_r(username,  sizeof(username)) == 0 && gethostname(hostname, sizeof(hostname)) == 0) {
+        std::cout << "\u001b[33m" << username << "\u001b[37m" << "@" << hostname;
+    }
+
+    std::cout << " " << c_path.string();
+    char* line = readline("\u001b[33m👁 >\u001b[37m ");
     if (line == nullptr) {
         std::cout << std::endl;
         return "exit";
@@ -25,18 +46,6 @@ std::string Shell::getInput() {
 
 void Shell::output(const std::string& message) const {
     std::cout << message << std::endl;
-}
-
-void Shell::help() const {
-    std::cout << "datetime - current date and time" << std::endl;
-    std::cout << "date - current date (YYYY-MM-DD)" << std::endl;
-    std::cout << "time - current time (HH:MM:SS)" << std::endl;
-    std::cout << "clear - clear the terminal screen" << std::endl;
-    std::cout << "echo <text> - print the given text" << std::endl;
-    std::cout << "exit - выход из shell" << std::endl;
-    std::cout << "li <command> - run any system command (Linux Integration)" << std::endl;
-    std::cout << "--------------------" << std::endl;
-    std::cout << "help - show this help" << std::endl;
 }
 
 void Shell::datetime() const {
@@ -59,62 +68,85 @@ void Shell::time() const {
 
 void Shell::clear() const {
     std::cout<<"\033[2J\033[1;1H" << std::flush;
-    brend();
 }
 
-void Shell::echo(const std::string& arrg) const {
-    std::cout << arrg << std::endl;
+void Shell::echo(std::vector<std::string> argv) {
+    std::cout << argv[1] << std::endl;
+}
+
+void Shell::cd(std::vector<std::string> argv) {
+    chdir(argv[1].c_str());
+    c_path = std::filesystem::current_path();
+}
+
+void Shell::pwd() {
+    std::cout << c_path.string() << std::endl;
 }
 
 void Shell::quit() { running_ = false; }
 
-void Shell::brend() const {
-    std::cout << "---XwX---" << std::endl;
-    std::cout << "See-Shell" << std::endl;
-}
-
-std::string Shell::parseCommand(const std::string& input) const {
-    size_t spacePos = input.find(' ');
-    if (spacePos != std::string::npos) {
-        return input.substr(0, spacePos);
+int Shell::fork_exec(std::vector<std::string> argv) {
+    std::vector<char*> c_args;
+    for (const auto& arg : argv) {
+        c_args.push_back(const_cast<char*>(arg.c_str()));
     }
-    return input;
-}
+    c_args.push_back(nullptr);
 
-std::string Shell::parseArrg(const std::string& input) const {
-    size_t spacePos = input.find(' ');
-    if (spacePos != std::string::npos) {
-        return input.substr(spacePos + 1);
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        std::cerr << "Failed to create process\n";
+        return 1;
     }
-    return "";
-}
 
-void Shell::executeCommand(const std::string& command) {
-    const std::string cmd = parseCommand(command);
-    const std::string arrg = parseArrg(command);
-    if (cmd == "help") {
-        help();
-    } else if (cmd == "datetime") {
-        datetime();
-    } else if (cmd == "date") {
-        date();
-    } else if (cmd == "time") {
-        time();
-    } else if (cmd == "clear") {
-        clear();
-    } else if (cmd == "echo") {
-        echo(arrg);
-    } else if (cmd == "li") {
-        system(arrg.c_str());
-    } else if (cmd == "exit") {
-        quit();
+    if (pid == 0) {
+        execvp(c_args[0], c_args.data());
+
+        std::cerr << argv[0] << ": cmd nf\n";
+        _exit(127);
+    } else if (pid > 0) {
+        int status;
+        if (waitpid(pid, &status, 0) == -1) {
+            std::perror("Waitpid error");
+            return 1;
+        }
+        return 1;
     } else {
-        std::cout << "Unknown command: " << cmd << std::endl;
+        std::perror("Fork error");
+        return 1;
+    }
+}
+
+std::vector<std::string> Shell::parseArrg(std::string& input) {
+    std::vector<std::string> argv;
+    const char delimiters[] = " ";
+
+    std::vector<char> buffer(input.begin(), input.end());
+    buffer.push_back('\0');
+
+    char *token = strtok(buffer.data(), delimiters);
+
+    while (token != NULL ) {
+        argv.push_back(token);
+        token = strtok(NULL, delimiters);
+    }
+    return argv;
+}
+
+void Shell::executeCommand(std::string& command) {
+    //const std::string cmd = parseCommand(command);
+    const std::vector<std::string> argv = parseArrg(command);
+
+    auto it = cmds.find(argv[0]);
+
+    if (it != cmds.end()) {
+        it->second(argv);
+    } else {
+        fork_exec(argv);
     }
 }
 
 void Shell::run() {
-    brend();
     std::string userInput;
     while (running_) {
         userInput = getInput();

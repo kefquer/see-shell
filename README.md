@@ -10,13 +10,12 @@ See Shell provides a basic interactive prompt with a few built-in commands and t
 
 ## Built-in commands
 
-- `help` – print a list of available commands
 - `datetime` – show current date and time in locale format
 - `date` – show current date (YYYY-MM-DD)
 - `time` – show current time (HH:MM:SS)
-- `clear` – clear the terminal screen (using ANSI escape codes)
+- `clear` – clear the terminal screen
 - `echo <text>` – print the given text to the terminal
-- `li <command>` – execute a system command (Linux Integration)
+- `pwd` – print absolute path
 - `exit` – quit the shell
 
 The shell uses **GNU Readline** for input handling, which gives you line editing, history navigation with arrow keys, and persistent history between sessions.
@@ -25,7 +24,7 @@ The shell uses **GNU Readline** for input handling, which gives you line editing
 
 ### Requirements
 
-- C++20 compatible compiler (GCC 10+ or Clang 12+)
+- C++26 compatible compiler (GCC 16+)
 - GNU Readline library (`readline` on Arch, `libreadline-dev` on Debian/Ubuntu)
 - GNU Make
 
@@ -38,7 +37,7 @@ make
 ```
 The binary will be named see-shell.
 
-## Installation (optional)
+## Installation
 
 A script install.sh is provided for convenience. It will build the project, copy the binary to /usr/local/bin/see-shell, and add it to /etc/shells.
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== Build See Shell ==="
+echo "=== Build 👁  See Shell 👁  ==="
 make clean
 make
 
@@ -19,4 +19,4 @@ fi
 
 echo ""
 echo "Succeful installed"
-echo "⚠️ Warning: This is an educational project. Please test thoroughly before making it your default shell."
+echo "⚠️ Warning: This is in early development. Please test thoroughly before making it your default shell."

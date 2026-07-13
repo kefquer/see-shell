@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -Wextra -O2
+CXXFLAGS = -std=c++26 -Wall -Wextra -O2
 LDFLAGS = -lreadline
 TARGET = see-shell
 SRC = src/shell.cpp src/main.cpp
