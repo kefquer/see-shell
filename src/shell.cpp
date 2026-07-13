@@ -1,13 +1,18 @@
 #include "shell.hpp"
 
+#include <algorithm>
 #include <csignal>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <chrono>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <string>
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <vector>
 
 Shell::Shell() {
     std::signal(SIGINT, SIG_IGN);
@@ -117,6 +122,75 @@ int Shell::fork_exec(std::vector<std::string> argv) {
     }
 }
 
+std::vector<char*> Shell::to_c_args(const std::vector<std::string>& argv) {
+    std::vector<char*> c_args;
+    for (const auto& arg : argv) {
+        c_args.push_back(const_cast<char*>(arg.c_str()));
+    }
+    c_args.push_back(nullptr);
+
+    return c_args;
+}
+
+int Shell::pipeline(std::vector<std::string> argv) {
+    auto it = std::find(argv.begin(), argv.end(), "|");
+
+    if (it == argv.end()) {
+        return 1;
+    }
+
+    std::vector<std::string> cmd_args(argv.begin(), it);
+    std::vector<std::string> cmd1_args(it + 1, argv.end());
+
+    if (cmd_args.empty() || cmd1_args.empty()) {
+        std::cerr << "Error syntaxys\n";
+        return 1;
+    }
+
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        return 1;
+    }
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        dup2(pipefd[1], STDOUT_FILENO);
+
+        close(pipefd[1]);
+        close(pipefd[0]);
+
+        auto c_args = to_c_args(cmd_args);
+        execvp(c_args[0], c_args.data());
+
+        perror(cmd_args[0].c_str());
+        exit(1);
+    }
+
+    pid_t pid1 = fork();
+    if (pid1 == 0) {
+        dup2(pipefd[0], STDIN_FILENO);
+
+        close(pipefd[0]);
+        close(pipefd[1]);
+
+        auto c_args1 = to_c_args(cmd1_args);
+        execvp(c_args1[0], c_args1.data());
+
+        perror(cmd1_args[0].c_str());
+        exit(1);
+    }
+
+    close(pipefd[0]);
+    close(pipefd[1]);
+
+    int status;
+    waitpid(pid, &status, 0);
+    waitpid(pid1, &status, 0);
+
+    return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+}
+
 std::vector<std::string> Shell::parseArrg(std::string& input) {
     std::vector<std::string> argv;
     const char delimiters[] = " ";
@@ -134,13 +208,18 @@ std::vector<std::string> Shell::parseArrg(std::string& input) {
 }
 
 void Shell::executeCommand(std::string& command) {
-    //const std::string cmd = parseCommand(command);
     const std::vector<std::string> argv = parseArrg(command);
 
     auto it = cmds.find(argv[0]);
 
     if (it != cmds.end()) {
         it->second(argv);
+        return;
+    }
+
+    auto pipe_it = std::find(argv.begin(), argv.end(), "|");
+    if (pipe_it != argv.end()) {
+        pipeline(argv);
     } else {
         fork_exec(argv);
     }

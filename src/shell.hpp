@@ -31,6 +31,9 @@ private:
     void pwd();
     void quit();
 
+    std::vector<char*> to_c_args(const std::vector<std::string>& argv);
+
+    int pipeline(std::vector<std::string> argv);
     int fork_exec(std::vector<std::string> argv);
     std::vector<std::string> parseArrg(std::string& input);
     void executeCommand(std::string& command);
