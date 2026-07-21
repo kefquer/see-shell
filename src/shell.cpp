@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <vector>
+#include <sstream>
 
 Shell::Shell() {
     std::signal(SIGINT, SIG_IGN);
@@ -107,23 +108,21 @@ int Shell::fork_exec(std::vector<std::string> argv) {
     if (pid == 0) {
         execvp(c_args[0], c_args.data());
 
-        std::cerr << argv[0] << ": cmd nf\n";
+        std::cerr << argv[0] << ": cmd not found\n";
         _exit(127);
-    } else if (pid > 0) {
-        int status;
-        if (waitpid(pid, &status, 0) == -1) {
-            std::perror("Waitpid error");
-            return 1;
-        }
-        return 1;
-    } else {
-        std::perror("Fork error");
+    }
+    int status;
+    if (waitpid(pid, &status, 0) == -1) {
+        std::perror("Waitpid error");
         return 1;
     }
+
+    return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
 }
 
 std::vector<char*> Shell::to_c_args(const std::vector<std::string>& argv) {
     std::vector<char*> c_args;
+    c_args.reserve(argv.size() + 1);
     for (const auto& arg : argv) {
         c_args.push_back(const_cast<char*>(arg.c_str()));
     }
@@ -134,16 +133,13 @@ std::vector<char*> Shell::to_c_args(const std::vector<std::string>& argv) {
 
 int Shell::pipeline(std::vector<std::string> argv) {
     auto it = std::find(argv.begin(), argv.end(), "|");
-
-    if (it == argv.end()) {
-        return 1;
-    }
+    if (it == argv.end()) return 1;
 
     std::vector<std::string> cmd_args(argv.begin(), it);
     std::vector<std::string> cmd1_args(it + 1, argv.end());
 
     if (cmd_args.empty() || cmd1_args.empty()) {
-        std::cerr << "Error syntaxys\n";
+        std::cerr << "Syntax error\n";
         return 1;
     }
 
@@ -184,26 +180,33 @@ int Shell::pipeline(std::vector<std::string> argv) {
     close(pipefd[0]);
     close(pipefd[1]);
 
-    int status;
+    int status, status1;
     waitpid(pid, &status, 0);
-    waitpid(pid1, &status, 0);
+    waitpid(pid1, &status1, 0);
 
-    return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+    return WIFEXITED(status1) ? WEXITSTATUS(status1) : 1;
 }
 
 std::vector<std::string> Shell::parseArrg(std::string& input) {
     std::vector<std::string> argv;
-    const char delimiters[] = " ";
+    std::stringstream ss(input);
+    std::string token;
 
-    std::vector<char> buffer(input.begin(), input.end());
-    buffer.push_back('\0');
-
-    char *token = strtok(buffer.data(), delimiters);
-
-    while (token != NULL ) {
+    while (ss >> token) {
         argv.push_back(token);
-        token = strtok(NULL, delimiters);
     }
+
+    // const char delimiters[] = " ";
+
+    // std::vector<char> buffer(input.begin(), input.end());
+    // buffer.push_back('\0');
+
+    // char *token = strtok(buffer.data(), delimiters);
+
+    // while (token != NULL ) {
+    //     argv.push_back(token);
+    //     token = strtok(NULL, delimiters);
+    // }
     return argv;
 }
 
